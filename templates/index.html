@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resume Skill Extractor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#f5f4f0;--surface:#ffffff;--border:#e2e0d8;--text:#1a1917;--muted:#6b6a65;--accent:#2d5a3d;--accent-light:#e8f0eb;--tag-bg:#eef3ee;--tag-text:#2d5a3d;--amber:#92540a;--amber-bg:#fdf3e3;--blue:#1e3a5f;--blue-bg:#e8eff8;--radius:12px;--radius-sm:8px}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:2rem 1rem}
+    header{text-align:center;max-width:640px;margin:0 auto 2.5rem}
+    header h1{font-size:2rem;font-weight:600;letter-spacing:-0.03em;margin-bottom:0.4rem}
+    header p{font-size:0.95rem;color:var(--muted)}
+    .dot{color:var(--accent)}
+    .container{max-width:720px;margin:0 auto}
+    .upload-zone{background:var(--surface);border:1.5px dashed var(--border);border-radius:var(--radius);padding:3rem 2rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative}
+    .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:var(--accent-light)}
+    .upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .upload-icon{width:48px;height:48px;background:var(--accent-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}
+    .upload-icon svg{width:22px;height:22px;stroke:var(--accent);fill:none;stroke-width:2}
+    .upload-zone h2{font-size:1rem;font-weight:500;margin-bottom:0.3rem}
+    .upload-zone p{font-size:0.85rem;color:var(--muted)}
+    .file-chosen{font-size:0.85rem;color:var(--accent);font-weight:500;margin-top:0.8rem}
+    .btn{display:block;width:100%;margin-top:1rem;padding:0.85rem;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:500;border:none;border-radius:var(--radius-sm);cursor:pointer;transition:opacity .15s,transform .1s}
+    .btn:hover{opacity:0.88}
+    .btn:active{transform:scale(0.99)}
+    .btn:disabled{opacity:0.5;cursor:not-allowed}
+    .loader{display:none;text-align:center;padding:2rem;color:var(--muted);font-size:0.9rem}
+    .spinner{width:28px;height:28px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 0.8rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #results{display:none;margin-top:2rem}
+    .results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem}
+    .results-header h2{font-size:1rem;font-weight:600}
+    .reset-btn{font-size:0.82rem;color:var(--muted);background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:'DM Sans',sans-serif}
+    .reset-btn:hover{border-color:var(--accent);color:var(--accent)}
+    .grid{display:grid;gap:12px}
+    .grid-2{grid-template-columns:1fr 1fr}
+    @media(max-width:560px){.grid-2{grid-template-columns:1fr}}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.2rem}
+    .card-title{font-size:0.72rem;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin-bottom:0.8rem}
+    .contact-name{font-size:1.15rem;font-weight:600;margin-bottom:0.5rem}
+    .contact-row{display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--muted);margin-bottom:0.3rem}
+    .contact-row span{color:var(--text)}
+    .contact-row a{color:var(--accent);text-decoration:none}
+    .exp-years{font-size:2.2rem;font-weight:600;color:var(--accent);line-height:1;margin-bottom:0.3rem;font-family:'DM Mono',monospace}
+    .exp-label{font-size:0.82rem;color:var(--muted);margin-bottom:1rem}
+    .range-item{display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:4px 0;border-bottom:1px solid var(--border)}
+    .range-item:last-child{border-bottom:none}
+    .range-years{font-family:'DM Mono',monospace;font-size:0.78rem;background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:20px}
+    .tags{display:flex;flex-wrap:wrap;gap:6px}
+    .tag{font-size:0.78rem;font-weight:500;padding:4px 10px;border-radius:20px;background:var(--tag-bg);color:var(--tag-text)}
+    .tag.blue{background:var(--blue-bg);color:var(--blue)}
+    .edu-item{font-size:0.85rem;color:var(--text);padding:6px 0;border-bottom:1px solid var(--border)}
+    .edu-item:last-child{border-bottom:none}
+    .error-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--radius-sm);padding:1rem;color:#b91c1c;font-size:0.88rem;margin-top:1rem;display:none}
+    .meta{font-size:0.78rem;color:var(--muted);text-align:right;margin-top:0.6rem}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Resume Extractor<span class="dot">.</span></h1>
+    <p>Upload a PDF resume — get skills, experience, job titles &amp; more.</p>
+  </header>
+  <div class="container">
+    <div class="upload-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf" />
+      <div class="upload-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <h2>Drop your resume here</h2>
+      <p>or click to browse &mdash; PDF only, max 5 MB</p>
+      <div class="file-chosen" id="fileName"></div>
+    </div>
+    <button class="btn" id="extractBtn" disabled>Extract Resume Data</button>
+    <div class="error-box" id="errorBox"></div>
+    <div class="loader" id="loader"><div class="spinner"></div>Analyzing your resume&hellip;</div>
+    <div id="results">
+      <div class="results-header">
+        <h2>Extraction results</h2>
+        <button class="reset-btn" id="resetBtn">&#8617; Upload another</button>
+      </div>
+      <div class="grid grid-2" style="margin-bottom:12px">
+        <div class="card">
+          <div class="card-title">Contact info</div>
+          <div class="contact-name" id="contactName">—</div>
+          <div id="contactDetails"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Years of experience</div>
+          <div class="exp-years" id="expYears">0</div>
+          <div class="exp-label">total years detected</div>
+          <div id="expRanges"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title">Skills detected (<span id="skillCount">0</span>)</div>
+        <div class="tags" id="skillTags"></div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-title">Job titles found</div>
+        <div class="tags" id="titleTags"></div>
+      </div>
+      <div class="card" id="cardSummary" style="display:none;margin-bottom:12px">
+        <div class="card-title">Professional summary</div>
+        <p id="summaryText" style="font-size:0.88rem;color:var(--text);line-height:1.7;margin:0"></p>
+      </div>
+      <div class="card">
+        <div class="card-title">Education</div>
+        <div id="eduList"></div>
+      </div>
+      <div class="meta" id="wordCount"></div>
+    </div>
+  </div>
+  <script>
+    const fileInput=document.getElementById('fileInput'),dropZone=document.getElementById('dropZone'),
+    fileName=document.getElementById('fileName'),extractBtn=document.getElementById('extractBtn'),
+    loader=document.getElementById('loader'),results=document.getElementById('results'),
+    errorBox=document.getElementById('errorBox'),resetBtn=document.getElementById('resetBtn');
+    let selectedFile=null;
+    function setFile(f){if(!f||f.type!=='application/pdf'){showError('Please select a valid PDF file.');return;}selectedFile=f;fileName.textContent=f.name;extractBtn.disabled=false;hideError();}
+    fileInput.addEventListener('change',e=>setFile(e.target.files[0]));
+    dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+    dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');setFile(e.dataTransfer.files[0]);});
+    extractBtn.addEventListener('click',async()=>{
+      if(!selectedFile)return;
+      extractBtn.disabled=true;loader.style.display='block';results.style.display='none';hideError();
+      const fd=new FormData();fd.append('resume',selectedFile);
+      try{const res=await fetch('/extract',{method:'POST',body:fd});const data=await res.json();if(data.error)throw new Error(data.error);renderResults(data);}
+      catch(err){showError(err.message||'Something went wrong.');extractBtn.disabled=false;}
+      finally{loader.style.display='none';}
+    });
+    resetBtn.addEventListener('click',()=>{selectedFile=null;fileInput.value='';fileName.textContent='';extractBtn.disabled=true;results.style.display='none';hideError();});
+    function showError(msg){errorBox.textContent=msg;errorBox.style.display='block';}
+    function hideError(){errorBox.style.display='none';}
+    function renderResults(data){
+      const c=data.contact;
+      document.getElementById('contactName').textContent=c.name||'Name not found';
+      const det=document.getElementById('contactDetails');det.innerHTML='';
+      if(c.email)det.innerHTML+=`<div class="contact-row">&#128231; <span>${c.email}</span></div>`;
+      if(c.phone)det.innerHTML+=`<div class="contact-row">&#128222; <span>${c.phone}</span></div>`;
+      if(c.linkedin)det.innerHTML+=`<div class="contact-row">&#128279; <a href="https://${c.linkedin}" target="_blank">${c.linkedin}</a></div>`;
+      if(c.github)det.innerHTML+=`<div class="contact-row">&#128025; <a href="https://${c.github}" target="_blank">${c.github}</a></div>`;
+      if(c.website)det.innerHTML+=`<div class="contact-row">&#127760; <a href="https://${c.website}" target="_blank">${c.website}</a></div>`;
+      document.getElementById('expYears').textContent=data.experience.total_years||'?';
+      const rng=document.getElementById('expRanges');rng.innerHTML='';
+      (data.experience.date_ranges||[]).forEach(r=>{rng.innerHTML+=`<div class="range-item"><span>${r.from} &ndash; ${r.to}</span><span class="range-years">${r.years}y</span></div>`;});
+      document.getElementById('skillCount').textContent=data.skills.length;
+      const st=document.getElementById('skillTags');
+      st.innerHTML=data.skills.length?data.skills.map(s=>`<span class="tag">${s}</span>`).join(''):'<span style="color:var(--muted);font-size:0.85rem">No skills detected</span>';
+      const tt=document.getElementById('titleTags');
+      tt.innerHTML=data.job_titles.length?data.job_titles.map(t=>`<span class="tag blue">${t}</span>`).join(''):'<span style="color:var(--muted);font-size:0.85rem">No titles detected</span>';
+      const el=document.getElementById('eduList');
+      el.innerHTML=data.education.length?data.education.map(e=>`<div class="edu-item">${e}</div>`).join(''):'<span style="color:var(--muted);font-size:0.85rem">No degree info detected</span>';
+      document.getElementById('wordCount').textContent=`${data.word_count} words parsed`;
+      const summaryCard=document.getElementById('cardSummary');
+      if(data.summary){summaryCard.style.display='block';document.getElementById('summaryText').textContent=data.summary;}
+      else{summaryCard.style.display='none';}
+      results.style.display='block';results.scrollIntoView({behavior:'smooth'});
+    }
+  </script>
+</body>
+</html>

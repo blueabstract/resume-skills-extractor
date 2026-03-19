@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+uploads/
+*.pdf
+.DS_Store
+venv/
+env/
+.venv/
