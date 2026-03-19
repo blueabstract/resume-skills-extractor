@@ -1,8 +1,8 @@
-# Resume Skill Extractor
+# Resume Skill Extractor + ATS Job Match Scorer
 
-A fullstack NLP web app built with Flask that extracts structured information from PDF resumes — including skills, job titles, years of experience, education, and contact info.
+A fullstack NLP + ML web app built with Flask that extracts structured information from PDF resumes and scores them against job descriptions using TF-IDF vectorization and cosine similarity.
 
-Built with Python, Flask, spaCy, and pdfplumber. Deployed for free on Railway.
+Built with Python, Flask, spaCy, scikit-learn, and pdfplumber. Deployed for free on Railway.
 
 ---
 
@@ -15,6 +15,7 @@ Built with Python, Flask, spaCy, and pdfplumber. Deployed for free on Railway.
 
 ## Features
 
+### Resume Extractor
 - Upload a PDF resume via drag-and-drop or file picker
 - Extracts **skills** from a curated list of 100+ tech keywords with confidence scoring
 - Detects **job titles** using multi-pass regex + spaCy NER with deduplication
@@ -22,43 +23,68 @@ Built with Python, Flask, spaCy, and pdfplumber. Deployed for free on Railway.
 - Pulls **contact info** — email, phone, LinkedIn, GitHub, portfolio website
 - Identifies **education** (degrees, institutions)
 - Extracts **professional summary** if present
-- Clean, responsive UI — no page reloads, all AJAX
+
+### ATS Job Match Scorer (ML)
+- Paste any job description alongside your resume
+- Scores resume-to-JD match from 0–100 using **TF-IDF + cosine similarity**
+- Shows **matched skills** and **missing skills**
+- **Category breakdown** — scores by skill domain (Languages, Frontend, Backend, Cloud, etc.)
+- Highlights **bonus skills** — things you have that aren't in the JD but are still valuable
+- Animated score ring UI with verdict (Excellent / Good / Partial / Low match)
 
 ---
 
-## Tech stack
+## How the ML Works
+
+The ATS scorer uses two signals blended together for a calibrated final score:
+
+**1. TF-IDF Cosine Similarity (60% weight)**
+Both the resume and job description are converted into TF-IDF feature vectors using scikit-learn's `TfidfVectorizer` with trigrams (`ngram_range=(1,3)`) and log normalization. Cosine similarity is then computed between the two vectors — measuring the angle between them in high-dimensional space. A score of 1.0 means identical, 0.0 means no overlap.
+
+**2. Keyword Match Ratio (40% weight)**
+Skills are extracted from both texts using regex pattern matching against a curated database of 100+ tech skills grouped by category. The ratio of matched keywords to total JD keywords gives a direct skill coverage score.
+
+**Final score = (TF-IDF similarity × 0.6) + (keyword ratio × 0.4)**
+
+This blend makes the score robust — TF-IDF captures semantic context and phrasing, while keyword matching captures exact skill names.
+
+---
+
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Backend | Python 3.11, Flask |
+| ML / Scoring | scikit-learn (TF-IDF, cosine similarity) |
 | NLP | spaCy (`en_core_web_sm`), regex |
 | PDF parsing | pdfplumber |
-| Frontend | Vanilla HTML/CSS/JS |
+| Frontend | Vanilla HTML / CSS / JS |
 | Deployment | Railway (free tier) |
 | Process manager | Gunicorn |
 
 ---
 
-## Project structure
+## Project Structure
 
 ```
 resume-extractor/
 ├── utils/
 │   ├── __init__.py
-│   └── extractor.py        # NLP extraction logic
+│   ├── extractor.py        # NLP extraction logic
+│   └── ats_scorer.py       # ML scoring — TF-IDF + cosine similarity
 ├── templates/
-│   └── index.html          # Frontend UI
+│   └── index.html          # Frontend UI (two tabs)
 ├── uploads/                # Temp folder (auto-cleared after each request)
-├── app.py                  # Flask routes
+├── app.py                  # Flask routes (/extract and /ats-score)
 ├── requirements.txt
-├── Procfile                # Railway / gunicorn start command
+├── Procfile                # Railway start command
 ├── runtime.txt             # Python version pin
 └── .gitignore
 ```
 
 ---
 
-## Running locally
+## Running Locally
 
 ### 1. Clone the repo
 
@@ -95,7 +121,63 @@ Open your browser at `http://localhost:5000`
 
 ---
 
-## Deploying for free on Railway
+## API Endpoints
+
+### `POST /extract`
+Extracts structured data from a PDF resume.
+
+**Request:** `multipart/form-data`
+| Field | Type | Description |
+|---|---|---|
+| `resume` | file | PDF resume (max 5MB) |
+
+**Response:**
+```json
+{
+  "contact": { "name": "...", "email": "...", "phone": "...", "linkedin": "...", "github": "...", "website": "..." },
+  "skills": ["Python", "Flask", "Docker", "..."],
+  "job_titles": ["Senior Software Engineer", "..."],
+  "experience": { "total_years": 5, "date_ranges": [...] },
+  "education": ["B.Tech Computer Science, IIT Bombay, 2018"],
+  "summary": "...",
+  "word_count": 423
+}
+```
+
+---
+
+### `POST /ats-score`
+Scores a resume against a job description using ML.
+
+**Request:** `multipart/form-data`
+| Field | Type | Description |
+|---|---|---|
+| `resume` | file | PDF resume (max 5MB) |
+| `job_description` | string | Full job description text |
+
+**Response:**
+```json
+{
+  "score": 74,
+  "verdict": "Good match",
+  "verdict_color": "blue",
+  "matched_skills": ["Python", "Docker", "AWS"],
+  "missing_skills": ["Kubernetes", "Terraform"],
+  "bonus_skills": ["Flask", "Redis"],
+  "category_scores": {
+    "Languages": { "score": 80, "matched": ["Python"], "missing": [] },
+    "Cloud / DevOps": { "score": 50, "matched": ["Docker", "AWS"], "missing": ["Kubernetes"] }
+  },
+  "keyword_match_pct": 68,
+  "tfidf_similarity": 32.4,
+  "total_jd_keywords": 12,
+  "total_resume_keywords": 18
+}
+```
+
+---
+
+## Deploying for Free on Railway
 
 ### Step 1 — Push to GitHub
 
@@ -115,17 +197,16 @@ Go to [railway.app](https://railway.app) and sign up for free using your GitHub 
 ### Step 3 — Deploy
 
 1. Click **New Project → GitHub Repository**
-2. Select your `resume-skills-extractor` repo
-3. Click **Deploy Now**
-4. Go to **Settings → Build** and set the custom build command:
+2. Select your `resume-skills-extractor` repo and click **Deploy Now**
+3. Go to **Settings → Build** and set the Custom Build Command:
    ```
    pip install -r requirements.txt
    ```
-5. Go to **Settings → Deploy** and set the start command:
+4. Go to **Settings → Deploy** and set the Start Command:
    ```
    gunicorn app:app
    ```
-6. Click the **Deploy** button at the top
+5. Click the purple **Deploy** button at the top
 
 ### Step 4 — Get your live URL
 
@@ -133,40 +214,19 @@ Go to [railway.app](https://railway.app) and sign up for free using your GitHub 
 2. Click **Generate Domain**
 3. Your app is live at the generated URL
 
-> Railway gives you $5 free credit per month which resets monthly. A simple Flask app like this uses roughly $0.50–$1.00/month, so you're well within the free tier.
+> Railway gives you $5 free credit per month which resets monthly. A simple Flask app like this uses roughly $0.50–$1.00/month — well within the free tier. No card required.
 
 ---
 
-## How extraction works
+## Extending the Project
 
-### Skills
-Scanned against a list of 100+ skills across programming languages, frameworks, cloud tools, databases, and more. Uses a confidence scoring system — skills found inside a dedicated "Skills" section score higher than those found in the body text.
-
-### Job titles
-Three-pass extraction: regex pattern matching for title structures like `Senior Software Engineer`, a hardcoded list of 30+ known standalone titles, and a line-by-line scan of the experience section. Substring deduplication removes shorter titles if a longer match already exists.
-
-### Years of experience
-Parses date ranges like `Jan 2020 – Dec 2023` or `2019 – Present` using regex. Filters out bad years, deduplicates repeated ranges, and sorts by most recent. Falls back to explicit mentions like `5 years of experience`.
-
-### Contact info
-Email, phone (international-aware), LinkedIn, GitHub, and portfolio website are extracted via regex. Name is identified using spaCy's Named Entity Recognition (`PERSON` label) on the first 600 characters, with a fallback to the first short capitalized line.
-
-### Education
-Matches degree keywords (B.S., M.Tech, Ph.D., MBA, etc.) and captures surrounding context. Deduplicates by degree type.
-
-### Professional summary
-Looks for a summary/objective/profile section header and extracts the text beneath it (up to 400 characters).
-
----
-
-## Extending the project
-
-- **Add more skills** — edit `SKILLS_DB` in `utils/extractor.py`
-- **Export results as JSON** — add a download button on the frontend
-- **ATS score** — compare extracted skills against a job description
-- **Store results in a database** — add SQLite with Flask-SQLAlchemy
-- **Support DOCX** — use `python-docx` for Word document resumes
-- **Better NER** — fine-tune a spaCy model on resume data for higher accuracy
+- **Semantic skill matching** — replace keyword matching with `sentence-transformers` for fuzzy skill detection
+- **Resume quality scorer** — train a regression model on resume features to output a quality score
+- **Job role predictor** — classify what role a candidate is best suited for using a scikit-learn classifier
+- **Export results as PDF** — generate a downloadable match report
+- **Store results in a database** — add SQLite with Flask-SQLAlchemy for history tracking
+- **Support DOCX** — use `python-docx` to accept Word document resumes
+- **Resume summarizer** — use a Hugging Face model to auto-generate a professional summary
 
 ---
 
